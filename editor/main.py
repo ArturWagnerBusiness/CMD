@@ -3,6 +3,8 @@ import os
 import re
 import keyboard
 import time
+from _thread import start_new_thread
+from KeyCollector import KeyCollector
 
 description = {
     "help": "\nUsage:\n\n> editor file_name [new/open] [file path]\n" + " " * 30 + " ^ W.I.P ^ "
@@ -126,51 +128,53 @@ class File:
         return self.lines
 
     def new_line_after(self):
-        global cursor_place
-        left = self.get_line(cursor_place[1])[:cursor_place[0]]
-        right = self.get_line(cursor_place[1])[cursor_place[0]:]
-        self.lines[cursor_place[1]] = left
-        self.lines.insert(cursor_place[1] + 1, right)
-        cursor_place[1] += 1
-        cursor_place[0] = 0
+        global cursor_pos
+        left = self.get_line(cursor_pos[1])[:cursor_pos[0]]
+        right = self.get_line(cursor_pos[1])[cursor_pos[0]:]
+        self.lines[cursor_pos[1]] = left
+        self.lines.insert(cursor_pos[1] + 1, right)
+        cursor_pos[1] += 1
+        cursor_pos[0] = 0
 
     def add_character(self, character):
-        global cursor_place
-        temp_line = list(self.get_line(cursor_place[1]))
+        global cursor_pos
+        temp_line = list(self.get_line(cursor_pos[1]))
 
-        temp_line.insert(cursor_place[0], character)
-        self.lines[cursor_place[1]] = "".join(temp_line)
-        cursor_place[0] += 1
+        temp_line.insert(cursor_pos[0], character)
+        self.lines[cursor_pos[1]] = "".join(temp_line)
+        cursor_pos[0] += 1
 
     def remove_line(self):
-        global cursor_place
-        if cursor_place[1] != 0:
-            self.lines.pop(cursor_place[1])
-            cursor_place[1] -= 1
+        global cursor_pos
+        if cursor_pos[1] != 0:
+            self.lines.pop(cursor_pos[1])
+            cursor_pos[1] -= 1
         else:
             self.lines[0] = ""
 
     def remove_character(self):
-        global cursor_place
-        if cursor_place[0] != 0:
-            temp_line = list(self.get_line(cursor_place[1]))
-            temp_line.pop(cursor_place[0]-1)
-            self.lines[cursor_place[1]] = "".join(temp_line)
-            cursor_place[0] -= 1
-        elif cursor_place[0] == 0 and cursor_place[1] != 0:
-            temp = self.get_line(cursor_place[1])
-            self.lines.pop(cursor_place[1])
-            cursor_place[1] -= 1
-            cursor_place[0] = opened_file.line_length(cursor_place[1])
-            self.lines[cursor_place[1]] += temp
+        global cursor_pos
+        if cursor_pos[0] != 0:
+            temp_line = list(self.get_line(cursor_pos[1]))
+            temp_line.pop(cursor_pos[0] - 1)
+            self.lines[cursor_pos[1]] = "".join(temp_line)
+            cursor_pos[0] -= 1
+        elif cursor_pos[0] == 0 and cursor_pos[1] != 0:
+            temp = self.get_line(cursor_pos[1])
+            self.lines.pop(cursor_pos[1])
+            cursor_pos[1] -= 1
+            cursor_pos[0] = opened_file.line_length(cursor_pos[1])
+            self.lines[cursor_pos[1]] += temp
 
     def line_length(self, line):
         return len(self.lines[line])
+
 
 class Debug:
     def __init__(self):
         self.enabled = False
         self.feedback = []
+
     def is_enabled(self):
         return self.enabled
 
@@ -184,7 +188,8 @@ class Debug:
         self.enabled = not self.enabled
 
     def display(self):
-        print("Cursor: ({}, {})".format(cursor_place[0], cursor_place[1]))
+        print("Cursor: ({}, {})".format(cursor_pos[0], cursor_pos[1]))
+        print("Display: ({}, {})".format(display_pos[0], display_pos[1]))
         print("File name: {}".format(system_data.get_currently_working_file()))
         print("File path: {}".format(system_data.get_currently_working_path()))
         print("\nFeed:")
@@ -202,23 +207,25 @@ def open_editor():
 
 
 def cursor_move(direction):
-    global cursor_place
-    if direction == "u" and cursor_place[1] != 0:
-        cursor_place[1] -= 1
-        if cursor_place[0] >= opened_file.line_length(cursor_place[1]):
-            cursor_place[0] = opened_file.line_length(cursor_place[1])
-    if direction == "d" and cursor_place[1] != len(opened_file.get_lines()) - 1:
-        cursor_place[1] += 1
-        if cursor_place[0] >= opened_file.line_length(cursor_place[1]):
-            cursor_place[0] = opened_file.line_length(cursor_place[1])
-    if direction == "l" and cursor_place[0] != 0:
-        cursor_place[0] -= 1
-    if direction == "r" and cursor_place[0] != opened_file.line_length(cursor_place[1]):
-        cursor_place[0] += 1
-
-
-def add_keyboard_key(combo, key):
-    keyboard.add_hotkey(combo, opened_file.add_character, args=key)
+    global cursor_pos
+    if direction == "u" and cursor_pos[1] != 0:
+        cursor_pos[1] -= 1
+        if cursor_pos[0] >= opened_file.line_length(cursor_pos[1]):
+            cursor_pos[0] = opened_file.line_length(cursor_pos[1])
+    if direction == "d" and cursor_pos[1] != len(opened_file.get_lines()) - 1:
+        cursor_pos[1] += 1
+        if cursor_pos[0] >= opened_file.line_length(cursor_pos[1]):
+            cursor_pos[0] = opened_file.line_length(cursor_pos[1])
+    if direction == "l" and cursor_pos[0] != 0:
+        cursor_pos[0] -= 1
+    elif direction == "l" and cursor_pos[0] == 0 and cursor_pos[1] != 0:
+        cursor_pos[1] -= 1
+        cursor_pos[0] = opened_file.line_length(cursor_pos[1])
+    if direction == "r" and cursor_pos[0] != opened_file.line_length(cursor_pos[1]):
+        cursor_pos[0] += 1
+    elif direction == "r" and cursor_pos[0] == opened_file.line_length(cursor_pos[1]) and cursor_pos[1] < len(opened_file.get_lines()) - 1:
+        cursor_pos[1] += 1
+        cursor_pos[0] = 0
 
 
 def toggle_help():
@@ -231,61 +238,73 @@ def save_document():
     debug.add_feedback("File was save successful!")
 
 
-def setup_editor_controls():
-    abc = "abcdefghijklmnopqrstuvwxyz"
-    for key in list("1234567890" + abc):
-        add_keyboard_key(key, key)
-
-    for key in list(",./`-=[];# "):
-        add_keyboard_key(key, key)
-
-    for key in list(abc):
-        add_keyboard_key("shift+" + key, key.upper())
-
-    add_keyboard_key("shift+1", "!")
-    add_keyboard_key("shift+2", "\"")
-    add_keyboard_key("shift+3", "£")
-    add_keyboard_key("shift+4", "$")
-    add_keyboard_key("shift+5", "%")
-    add_keyboard_key("shift+6", "^")
-    add_keyboard_key("shift+7", "&")
-    add_keyboard_key("shift+8", "*")
-    add_keyboard_key("shift+9", "(")
-    add_keyboard_key("shift+0", ")")
-    add_keyboard_key("shift+;", ":")
-    add_keyboard_key("shift+-", "_")
-    add_keyboard_key("shift+/", "?")
-
-    keyboard.add_hotkey("enter", opened_file.new_line_after)
-    keyboard.add_hotkey("backspace", opened_file.remove_character)
-    keyboard.add_hotkey("ctrl+backspace", opened_file.remove_line)
-    keyboard.add_hotkey("ctrl+left", cursor_move, args="l")
-    keyboard.add_hotkey("ctrl+up", cursor_move, args="u")
-    keyboard.add_hotkey("ctrl+down", cursor_move, args="d")
-    keyboard.add_hotkey("ctrl+right", cursor_move, args="r")
-    keyboard.add_hotkey("esc+2", toggle_help)
-    keyboard.add_hotkey("esc+3", save_document)
-    keyboard.add_hotkey("esc+4", debug.toggle)
-
-
 def editor():
-    global cursor_visible, opened_file, cursor_place, is_toggle_help
+    global cursor_visible, opened_file, cursor_pos, is_toggle_help, writing, options
+    global display_height, display_width, display_pos
     fps = 30  # FPS
-    is_toggle_help = True
+    is_toggle_help = False
+
+    display_height = 50
+    display_width = 190
+    display_pos = [0, 0]
 
     time_stamps = {
         "print_time": 0,
     }
+    key_collector = KeyCollector()
+    start_new_thread(key_collector.start_recording, ())
 
-    setup_editor_controls()
-
-    cursor_place = [0, 0]
+    cursor_pos = [0, 0]
     cursor_visible = True
+    writing = True
+    options = [False, 0]
 
     while True:
-        if keyboard.is_pressed("esc") and keyboard.is_pressed("1"):
-            while True:
-                input("Do CTRL+C to close the program! Garbage -[")
+        combo = key_collector.get_next_combo()
+        if options[0]:
+            if not isinstance(combo, list):
+                if combo in list("1234"):
+                    options[1] = combo
+            else:
+                action = combo[0]
+                if action == "ESC":
+                    writing = True
+                    options = [False, 0]
+                if action == "ENTER":
+                    if options[1] == "1":
+                        os.system("mode con: cols=81 lines=81")
+                        exit()
+                    if options[1] == "2":
+                        save_document()
+                    if options[1] == "3":
+                        toggle_help()
+                    if options[1] == "4":
+                        debug.toggle()
+
+        elif writing:
+            # If key stroke
+            if not isinstance(combo, list):
+                if combo != "":
+                    opened_file.add_character(combo)
+            # If action request
+            else:
+                action = combo[0]
+                if action == "F1":
+                    debug.toggle()
+                if action == "ENTER":
+                    opened_file.new_line_after()
+
+                # "ctrl+backspace" should do opened_file.remove_line() <-- Add it later
+                if action == "BACKSPACE":
+                    opened_file.remove_character()
+
+                if action == "ESC":
+                    writing = False
+                    options = [True, 0]
+
+                for arrow_key in ["UP", "DOWN", "LEFT", "RIGHT"]:
+                    if action == "{}_ARROW".format(arrow_key):
+                        cursor_move(arrow_key[:1].lower())
 
         if current_time() - time_stamps["print_time"] > round(1 / fps * 1000):
             time_stamps["print_time"] = current_time()
@@ -299,48 +318,83 @@ def current_time():
 
 def display_tick():
     global opened_file, is_toggle_help
+
     os.system("cls")
     if is_toggle_help:
-        print("-"*35 + "[ HELP ]" + "-"*36)
+        print("-"*96 + "[ HELP ]" + "-"*96)
 
-        help = [
-            "This is an experimental version 1",
-            "You can move with CTRL+ARROW_KEY",
-            "You can use ESC as a root with a number to select other options.",
-            "For example 2 (ESC+2) to hide this menu. You can pop it up any time you want!"
+        help_pop_up = [
+            "Opened a help section!"
         ]
-        for line in help:
+        for line in help_pop_up:
             print("  " + line + " "*(76-len(line)) + " ")
-    print("="*34 + "[ Editor ]" + "="*35)
+        print()
+    print("[ESC]" + "="*90 + "[ Editor ]" + "="*95)
     top_menu = [
-        "Root: [ESC] ",
-        "1) EXIT (no save) 3) Save",
-        "2) Toggle Help    4) Toggle Debug",
+        "1) EXIT (no save)   2) Save             3) Toggle Help      4) Toggle Debug"
+        # 234567890123456789 1234567890123456789 1234567890123456789 1234567890123456789
     ]
-    for line in top_menu:
-        print("  " + line + " "*(76-len(line)) + " ")
+    if options[0]:
+        print()
+        selected_top_menu = []
+        for line in top_menu:
+            selected_top_menu.append(line.replace(str(options[1])+")","->"))
+        for line in selected_top_menu:
+            print("  " + line + " "*(76-len(line)) + " ")
+        print("_"*200)
     print()
-    print("#"*79 + "\n")
+
+    # Display adjustment
+    # <- width check ->
+    if display_pos[0] == 0 and cursor_pos[0] == 0:
+        pass
+    elif cursor_pos[0] >= display_pos[0] + display_width:
+        display_pos[0] = cursor_pos[0] - display_width
+    elif cursor_pos[0] <= display_pos[0]:
+        display_pos[0] = cursor_pos[0]
+    # /\ height check \/
+    if display_pos[1] == 0 and cursor_pos[1] == 0:
+        pass
+    elif cursor_pos[1] >= display_pos[1] + display_height:
+        display_pos[1] = cursor_pos[1] - display_height
+    elif cursor_pos[1] <= display_pos[1]:
+        display_pos[1] = cursor_pos[1]
+
     for i, line in enumerate(opened_file.get_lines()):
-        if cursor_place[1] == i and cursor_visible:
+        if i < display_pos[1]:
+            continue
+        if i > display_pos[1] + display_height:
+            continue
+        line = line[display_pos[0]:]
+        if display_width < len(line):
+            line = line[:display_width]
+
+        number_index_width = 5
+        number_index = str(i) + " " * (number_index_width - len(str(i)))
+        if cursor_pos[1] == i and cursor_visible:
             temp = list(line)
-            while True:
-                try:
-                    temp[cursor_place[0]] = "<"
-                    break
-                except IndexError:
-                    temp.append(" ")
-            print("> " + "".join(temp))
+            if writing:
+                while True:
+                    try:
+                        temp[cursor_pos[0]-display_pos[0]] = "<"
+                        break
+                    except IndexError:
+                        temp.append(" ")
+            print(number_index + "> " + "".join(temp))
         else:
-            print("> " + line)
-    print("\n" + "#"*79)
+            print(number_index + "> " + line)
+    fill_lines = (display_height-len(opened_file.get_lines()))
+    if fill_lines > 0:
+        print("\n" * fill_lines)
+    print("\n" + "#"*200)
+
     bottom_credits = [
         "CMD text editor developed by Artur Wagner",
         "Jan 2019"
     ]
     print()
     for line in bottom_credits:
-        space_right = (79 - len(line))/2
+        space_right = (201 - len(line))/2
         space_left = space_right - 1
         if isinstance(len(line)/2, float):
             print(round(space_left) * " " + line + " " * round(space_right))
@@ -353,6 +407,7 @@ def display_tick():
 
 def main():
     global system_data, debug
+    os.system("mode con: cols=201 lines=81")
     system_data = SystemData(sys.argv)
     debug = Debug()
     order = system_data.get_order()
