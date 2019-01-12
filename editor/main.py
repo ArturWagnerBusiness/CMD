@@ -71,6 +71,14 @@ def read_file_here(file_name):
     return file_content
 
 
+def write_file_here(filename, lines):
+    with open(filename, "w") as f:
+        f.close()
+    with open(filename, "a") as f:
+        for line in lines:
+            f.write(line + "\n")
+
+
 class SystemData:
     def __init__(self, argv):
         try:
@@ -159,6 +167,33 @@ class File:
     def line_length(self, line):
         return len(self.lines[line])
 
+class Debug:
+    def __init__(self):
+        self.enabled = False
+        self.feedback = []
+    def is_enabled(self):
+        return self.enabled
+
+    def enable(self):
+        self.enabled = True
+
+    def disable(self):
+        self.enabled = False
+
+    def toggle(self):
+        self.enabled = not self.enabled
+
+    def display(self):
+        print("Cursor: ({}, {})".format(cursor_place[0], cursor_place[1]))
+        print("File name: {}".format(system_data.get_currently_working_file()))
+        print("File path: {}".format(system_data.get_currently_working_path()))
+        print("\nFeed:")
+        for feed in self.feedback:
+            print(feed)
+
+    def add_feedback(self, feed):
+        self.feedback.append(feed)
+
 
 def open_editor():
     global opened_file
@@ -191,15 +226,12 @@ def toggle_help():
     is_toggle_help = not is_toggle_help
 
 
-def editor():
-    global cursor_visible, opened_file, cursor_place, is_toggle_help
-    fps = 30  # FPS
-    is_toggle_help = True
+def save_document():
+    write_file_here(system_data.working_file, opened_file.get_lines())
+    debug.add_feedback("File was save successful!")
 
-    time_stamps = {
-        "print_time": 0,
-    }
 
+def setup_editor_controls():
     abc = "abcdefghijklmnopqrstuvwxyz"
     for key in list("1234567890" + abc):
         add_keyboard_key(key, key)
@@ -232,6 +264,20 @@ def editor():
     keyboard.add_hotkey("ctrl+down", cursor_move, args="d")
     keyboard.add_hotkey("ctrl+right", cursor_move, args="r")
     keyboard.add_hotkey("esc+2", toggle_help)
+    keyboard.add_hotkey("esc+3", save_document)
+    keyboard.add_hotkey("esc+4", debug.toggle)
+
+
+def editor():
+    global cursor_visible, opened_file, cursor_place, is_toggle_help
+    fps = 30  # FPS
+    is_toggle_help = True
+
+    time_stamps = {
+        "print_time": 0,
+    }
+
+    setup_editor_controls()
 
     cursor_place = [0, 0]
     cursor_visible = True
@@ -268,12 +314,12 @@ def display_tick():
     print("="*34 + "[ Editor ]" + "="*35)
     top_menu = [
         "Root: [ESC] ",
-        "1) EXIT          3) Save (W.I.P)",
-        "2) Toggle Help   4) Open (W.I.P)",
-        "Debug mode: " + str(cursor_place[0]) + ", " + str(cursor_place[1])
+        "1) EXIT (no save) 3) Save",
+        "2) Toggle Help    4) Toggle Debug",
     ]
     for line in top_menu:
         print("  " + line + " "*(76-len(line)) + " ")
+    print()
     print("#"*79 + "\n")
     for i, line in enumerate(opened_file.get_lines()):
         if cursor_place[1] == i and cursor_visible:
@@ -301,11 +347,14 @@ def display_tick():
         else:
             print(int(space_left) * " " + line + "" * int(space_right))
     print()
+    if debug.is_enabled():
+        debug.display()
 
 
 def main():
-    global system_data
+    global system_data, debug
     system_data = SystemData(sys.argv)
+    debug = Debug()
     order = system_data.get_order()
     if order == "new":
         system_data.change_currently_working_file(
