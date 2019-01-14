@@ -5,6 +5,115 @@ import keyboard
 import time
 from _thread import start_new_thread
 from KeyCollector import KeyCollector
+from colorama import init as colorama
+colorama()
+
+class Color:
+    black = "30"
+    red = "31"
+    green = "32"
+    yellow = "33"
+    blue = "34"
+    purple = "35"
+    cyan = "36"
+    white = "37"
+
+
+themes = {
+    "dark_red": {
+        "name": "Dark Red",
+        "help_line": [Color.black, Color.black, 1],
+        "help_text": [Color.black, Color.black, 1],
+        "help_title": [Color.red, Color.black, 1],
+
+        "esc": [Color.red, Color.black, 1],
+        "toolbar_line": [Color.black, Color.black, 1],
+        "toolbar_text": [Color.black, Color.black, 1],
+        "toolbar_title": [Color.red, Color.black, 1],
+
+        "editor_line_number": [Color.red, Color.black, 0],
+        "editor_line_side": [Color.red, Color.black, 1],
+        "editor_text": [Color.black, Color.black, 1],
+        "editor_cursor": [Color.red, Color.black, 1],
+
+        "editor_bottom": [Color.red, Color.black, 1],
+
+        "credits": [Color.black, Color.black, 1],
+
+        "debug": [Color.white, Color.black, 0],
+    },
+    "dark_cyan": {
+        "name": "Dark Cyan",
+        "help_line": [Color.black, Color.black, 1],
+        "help_text": [Color.cyan, Color.black, 0],
+        "help_title": [Color.cyan, Color.black, 1],
+
+        "esc": [Color.cyan, Color.black, 1],
+        "toolbar_line": [Color.black, Color.black, 1],
+        "toolbar_text": [Color.black, Color.black, 1],
+        "toolbar_title": [Color.cyan, Color.black, 1],
+
+        "editor_line_number": [Color.cyan, Color.black, 1],
+        "editor_line_side": [Color.blue, Color.black, 1],
+        "editor_text": [Color.black, Color.black, 1],
+        "editor_cursor": [Color.cyan, Color.black, 0],
+
+        "editor_bottom": [Color.blue, Color.black, 1],
+
+        "credits": [Color.black, Color.black, 1],
+
+        "debug": [Color.white, Color.black, 0],
+    }
+}
+themes_list = []
+for name, x in themes.items():
+    themes_list.append(name)
+for x, name in enumerate(themes_list):
+    if name == "dark_red":
+        current_theme = themes[themes_list[x]]
+        current_theme_id = x
+
+cursor_color = "\033[{}m".format(";".join([
+    str(current_theme["editor_cursor"][2]),
+    current_theme["editor_cursor"][0],
+    str(int(current_theme["editor_cursor"][1])+10)
+]))
+cursor_color_end = "\033[{}m".format(";".join([
+    str(current_theme["editor_text"][2]),
+    current_theme["editor_text"][0],
+    str(int(current_theme["editor_text"][1])+10)
+]))
+
+
+def next_theme():
+    global current_theme, current_theme_id, cursor_color, cursor_color_end
+    if current_theme_id == len(themes_list)-1:
+        current_theme_id = 0
+        current_theme = themes[themes_list[0]]
+    else:
+        current_theme_id += 1
+        current_theme = themes[themes_list[current_theme_id]]
+
+    cursor_color = "\033[{}m".format(";".join([
+        str(current_theme["editor_cursor"][2]),
+        current_theme["editor_cursor"][0],
+        str(int(current_theme["editor_cursor"][1]) + 10)
+    ]))
+    cursor_color_end = "\033[{}m".format(";".join([
+        str(current_theme["editor_text"][2]),
+        current_theme["editor_text"][0],
+        str(int(current_theme["editor_text"][1]) + 10)
+    ]))
+
+
+def color_set(setting):
+    if setting == "none":
+        print("\033[0m", end="")
+    else:
+        settings = current_theme[setting]
+        settings = str(settings[2]) + ";" + settings[0] + ";" + str(int(settings[1])+10)
+        print("\033[{}m".format(settings), end='')
+
 
 description = {
     "help": "\nUsage:\n\n> editor file_name [new/open] [file path]\n" + " " * 30 + " ^ W.I.P ^ "
@@ -188,10 +297,22 @@ class Debug:
         self.enabled = not self.enabled
 
     def display(self):
+        color_set("debug")
+        print("Debug mode enabled:")
+        print("Fps: {}".format(fps))
         print("Cursor: ({}, {})".format(cursor_pos[0], cursor_pos[1]))
         print("Display: ({}, {})".format(display_pos[0], display_pos[1]))
         print("File name: {}".format(system_data.get_currently_working_file()))
         print("File path: {}".format(system_data.get_currently_working_path()))
+        if writing:
+            print("writing = True")
+        else:
+            print("writing = False")
+        if options[0]:
+            print("options = True")
+        else:
+            print("options = False")
+        print("Theme: {} ({})".format(current_theme["name"], current_theme_id))
         print("\nFeed:")
         for feed in self.feedback:
             print(feed)
@@ -240,8 +361,8 @@ def save_document():
 
 def editor():
     global cursor_visible, opened_file, cursor_pos, is_toggle_help, writing, options
-    global display_height, display_width, display_pos
-    fps = 30  # FPS
+    global display_height, display_width, display_pos, fps
+    fps = 10  # FPS
     is_toggle_help = False
 
     display_height = 50
@@ -257,21 +378,26 @@ def editor():
     cursor_pos = [0, 0]
     cursor_visible = True
     writing = True
-    options = [False, 0]
+    options = [False, "0"]
 
     while True:
         combo = key_collector.get_next_combo()
         if options[0]:
             if not isinstance(combo, list):
-                if combo in list("1234"):
+                if combo in list("1234567"):
                     options[1] = combo
             else:
                 action = combo[0]
                 if action == "ESC":
                     writing = True
-                    options = [False, 0]
+                    options = [False, "0"]
+                if action == "DOWN_ARROW" and int(options[1]) < 7:
+                    options[1] = str(int(options[1]) + 1)
+                if action == "UP_ARROW" and int(options[1]) > 1:
+                    options[1] = str(int(options[1]) - 1)
                 if action == "ENTER":
                     if options[1] == "1":
+                        color_set("none")
                         os.system("mode con: cols=81 lines=81")
                         exit()
                     if options[1] == "2":
@@ -280,6 +406,14 @@ def editor():
                         toggle_help()
                     if options[1] == "4":
                         debug.toggle()
+                    if options[1] == "5":
+                        if fps < 60:
+                            fps += 1
+                    if options[1] == "6":
+                        if fps > 1:
+                            fps -= 1
+                    if options[1] == "7":
+                        next_theme()
 
         elif writing:
             # If key stroke
@@ -321,24 +455,40 @@ def display_tick():
 
     os.system("cls")
     if is_toggle_help:
-        print("-"*96 + "[ HELP ]" + "-"*96)
+        color_set("help_line")
+        print("-"*96, end="")
+        color_set("help_title")
+        print("[ HELP ]", end="")
+        color_set("help_line")
+        print("-"*96, end="")
 
         help_pop_up = [
             "Opened a help section!"
         ]
+        color_set("help_text")
         for line in help_pop_up:
             print("  " + line + " "*(76-len(line)) + " ")
         print()
-    print("[ESC]" + "="*90 + "[ Editor ]" + "="*95)
+    color_set("esc")
+    print("[ESC]", end="")
+    color_set("toolbar_line")
+    print("="*90, end="")
+    color_set("toolbar_title")
+    print("[ Editor ]", end="")
+    color_set("toolbar_line")
+    print("="*95)
     top_menu = [
-        "1) EXIT (no save)   2) Save             3) Toggle Help      4) Toggle Debug"
-        # 234567890123456789 1234567890123456789 1234567890123456789 1234567890123456789
+        "1) EXIT (no save)   4) Toggle Debug   7) Next Theme",
+        "2) Save             5) Increase fps",
+        "3) Toggle Help      6) Decrease fps"
+
     ]
+    color_set("toolbar_text")
     if options[0]:
         print()
         selected_top_menu = []
         for line in top_menu:
-            selected_top_menu.append(line.replace(str(options[1])+")","->"))
+            selected_top_menu.append(line.replace(str(options[1])+")", "->"))
         for line in selected_top_menu:
             print("  " + line + " "*(76-len(line)) + " ")
         print("_"*200)
@@ -376,22 +526,34 @@ def display_tick():
             if writing:
                 while True:
                     try:
-                        temp[cursor_pos[0]-display_pos[0]] = "<"
+                        temp[cursor_pos[0]-display_pos[0]] = cursor_color + "<" + cursor_color_end
                         break
                     except IndexError:
                         temp.append(" ")
-            print(number_index + "> " + "".join(temp))
+            color_set("editor_line_number")
+            print(number_index, end="")
+            color_set("editor_line_side")
+            print("> ", end="")
+            color_set("editor_text")
+            print("".join(temp))
         else:
-            print(number_index + "> " + line)
+            color_set("editor_line_number")
+            print(number_index, end="")
+            color_set("editor_line_side")
+            print("> ", end="")
+            color_set("editor_text")
+            print(line)
     fill_lines = (display_height-len(opened_file.get_lines()))
     if fill_lines > 0:
         print("\n" * fill_lines)
+    color_set("editor_bottom")
     print("\n" + "#"*200)
 
     bottom_credits = [
         "CMD text editor developed by Artur Wagner",
         "Jan 2019"
     ]
+    color_set("credits")
     print()
     for line in bottom_credits:
         space_right = (201 - len(line))/2
@@ -400,10 +562,11 @@ def display_tick():
             print(round(space_left) * " " + line + " " * round(space_right))
         else:
             print(int(space_left) * " " + line + "" * int(space_right))
+    color_set("debug")
     print()
     if debug.is_enabled():
         debug.display()
-
+    color_set("none")
 
 def main():
     global system_data, debug
