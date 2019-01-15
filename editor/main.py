@@ -8,6 +8,9 @@ from KeyCollector import KeyCollector
 from colorama import init as colorama
 colorama()
 
+options_dir = "C:\\CMD\\editor\\"
+
+
 class Color:
     black = "30"
     red = "31"
@@ -36,11 +39,11 @@ themes = {
         "editor_text": [Color.black, Color.black, 1],
         "editor_cursor": [Color.red, Color.black, 1],
 
-        "editor_bottom": [Color.red, Color.black, 1],
+        "editor_bottom": [Color.red, Color.black, 0],
 
         "credits": [Color.black, Color.black, 1],
 
-        "debug": [Color.white, Color.black, 0],
+        "debug": [Color.white, Color.black, 0]
     },
     "dark_cyan": {
         "name": "Dark Cyan",
@@ -58,11 +61,33 @@ themes = {
         "editor_text": [Color.black, Color.black, 1],
         "editor_cursor": [Color.cyan, Color.black, 0],
 
-        "editor_bottom": [Color.blue, Color.black, 1],
+        "editor_bottom": [Color.cyan, Color.black, 0],
 
         "credits": [Color.black, Color.black, 1],
 
-        "debug": [Color.white, Color.black, 0],
+        "debug": [Color.white, Color.black, 0]
+    },
+    "light_purple": {
+        "name": "Light Purple",
+        "help_line": [Color.white, Color.black, 1],
+        "help_text": [Color.purple, Color.black, 1],
+        "help_title": [Color.purple, Color.black, 1],
+
+        "esc": [Color.purple, Color.black, 1],
+        "toolbar_line": [Color.black, Color.black, 1],
+        "toolbar_text": [Color.purple, Color.black, 0],
+        "toolbar_title": [Color.purple, Color.black, 1],
+
+        "editor_line_number": [Color.purple, Color.black, 0],
+        "editor_line_side": [Color.black, Color.black, 1],
+        "editor_text": [Color.black, Color.black, 1],
+        "editor_cursor": [Color.purple, Color.black, 1],
+
+        "editor_bottom": [Color.purple, Color.black, 0],
+
+        "credits": [Color.black, Color.black, 1],
+
+        "debug": [Color.white, Color.black, 0]
     }
 }
 themes_list = []
@@ -83,6 +108,20 @@ cursor_color_end = "\033[{}m".format(";".join([
     current_theme["editor_text"][0],
     str(int(current_theme["editor_text"][1])+10)
 ]))
+
+# REWRITING PRINT()
+fprint_string = ""
+
+
+def fprint_dispatch():
+    global fprint_string
+    print(fprint_string)
+    fprint_string = ""
+
+
+def fprint(string="", end="\n"):
+    global fprint_string
+    fprint_string += string + end
 
 
 def next_theme():
@@ -108,11 +147,11 @@ def next_theme():
 
 def color_set(setting):
     if setting == "none":
-        print("\033[0m", end="")
+        fprint("\033[0m", end="")
     else:
         settings = current_theme[setting]
         settings = str(settings[2]) + ";" + settings[0] + ";" + str(int(settings[1])+10)
-        print("\033[{}m".format(settings), end='')
+        fprint("\033[{}m".format(settings), end='')
 
 
 description = {
@@ -122,10 +161,10 @@ description = {
 
 try:
     if sys.argv[1] in ["-help", "-h"]:
-        print(description["help"])
+        fprint(description["help"])
         exit()
 except IndexError:
-    print(description["help"])
+    fprint(description["help"])
     exit()
 
 
@@ -188,6 +227,43 @@ def write_file_here(filename, lines):
     with open(filename, "a") as f:
         for line in lines:
             f.write(line + "\n")
+
+
+def read_option_file(filename):
+    global is_toggle_help, fps
+    try:
+        with open(options_dir + filename) as f:
+            for line in f:
+                line = line.strip("\n")
+                if line.startswith("is_toggle_help = "):
+                    is_toggle_help = line.replace("is_toggle_help = ", "")
+                    if is_toggle_help == "True":
+                        is_toggle_help = True
+                    else:
+                        is_toggle_help = False
+                elif line.startswith("debug.enabled = "):
+                    if line.replace("debug.enabled = ", "") == "True":
+                        debug.enable()
+                    else:
+                        debug.disable()
+                elif line.startswith("fps = "):
+                    fps = int(line.replace("fps = ", ""))
+                elif line.startswith("current_theme = "):
+                    selected_theme = line.replace("current_theme = ", "")
+                    print(selected_theme)
+                    x = 0
+                    while selected_theme != themes_list[current_theme_id]:
+                        next_theme()
+    except FileNotFoundError:
+        if is_toggle_help:
+            is_toggle_help_string = "True"
+        else:
+            is_toggle_help_string = "False"
+        write_file_here(options_dir + filename,
+                        ["fps = " + str(fps),
+                         "is_toggle_help = " + is_toggle_help_string,
+                         "debug.enabled = " + debug.is_enabled_string(),
+                         "current_theme = " + themes_list[current_theme_id]])
 
 
 class SystemData:
@@ -275,6 +351,21 @@ class File:
             cursor_pos[0] = opened_file.line_length(cursor_pos[1])
             self.lines[cursor_pos[1]] += temp
 
+    def remove_character_right(self):
+        global cursor_pos
+        if cursor_pos[1] == len(self.get_lines()) and cursor_pos[0] == len(self.get_line(len(self.get_lines()))):
+            # End of file, can't use DEL
+            pass
+        elif cursor_pos[0] == self.get_line(cursor_pos[1]):
+            temp_line = list(self.get_line(cursor_pos[1]))
+            temp_line.insert(cursor_pos[0], self.get_line(cursor_pos[1]+1))
+            self.lines[cursor_pos[1]] = "".join(temp_line)
+            self.lines[cursor_pos[1]+1].pop()
+        elif cursor_pos[0] != self.get_line(cursor_pos[1]):
+            temp_line = list(self.get_line(cursor_pos[1]))
+            temp_line.pop(cursor_pos[0] + 1)
+            self.lines[cursor_pos[1]] = "".join(temp_line)
+
     def line_length(self, line):
         return len(self.lines[line])
 
@@ -287,6 +378,12 @@ class Debug:
     def is_enabled(self):
         return self.enabled
 
+    def is_enabled_string(self):
+        if self.enabled:
+            return "True"
+        else:
+            return "False"
+
     def enable(self):
         self.enabled = True
 
@@ -298,24 +395,24 @@ class Debug:
 
     def display(self):
         color_set("debug")
-        print("Debug mode enabled:")
-        print("Fps: {}".format(fps))
-        print("Cursor: ({}, {})".format(cursor_pos[0], cursor_pos[1]))
-        print("Display: ({}, {})".format(display_pos[0], display_pos[1]))
-        print("File name: {}".format(system_data.get_currently_working_file()))
-        print("File path: {}".format(system_data.get_currently_working_path()))
+        fprint("Debug mode enabled:")
+        fprint("Fps: {}".format(fps))
+        fprint("Cursor: ({}, {})".format(cursor_pos[0], cursor_pos[1]))
+        fprint("Display: ({}, {})".format(display_pos[0], display_pos[1]))
+        fprint("File name: {}".format(system_data.get_currently_working_file()))
+        fprint("File path: {}".format(system_data.get_currently_working_path()))
         if writing:
-            print("writing = True")
+            fprint("writing = True")
         else:
-            print("writing = False")
+            fprint("writing = False")
         if options[0]:
-            print("options = True")
+            fprint("options = True")
         else:
-            print("options = False")
-        print("Theme: {} ({})".format(current_theme["name"], current_theme_id))
-        print("\nFeed:")
+            fprint("options = False")
+        fprint("Theme: {} ({})".format(current_theme["name"], current_theme_id))
+        fprint("\nFeed:")
         for feed in self.feedback:
-            print(feed)
+            fprint(feed)
 
     def add_feedback(self, feed):
         self.feedback.append(feed)
@@ -365,7 +462,7 @@ def editor():
     fps = 10  # FPS
     is_toggle_help = False
 
-    display_height = 50
+    display_height = 49
     display_width = 190
     display_pos = [0, 0]
 
@@ -379,6 +476,10 @@ def editor():
     cursor_visible = True
     writing = True
     options = [False, "0"]
+
+    options_file = "options.txt"
+    # Overwrite options
+    read_option_file(options_file)
 
     while True:
         combo = key_collector.get_next_combo()
@@ -398,6 +499,15 @@ def editor():
                 if action == "ENTER":
                     if options[1] == "1":
                         color_set("none")
+                        if is_toggle_help:
+                            is_toggle_help_string = "True"
+                        else:
+                            is_toggle_help_string = "False"
+                        write_file_here(options_dir + options_file,
+                                        ["fps = " + str(fps),
+                                         "is_toggle_help = " + is_toggle_help_string,
+                                         "debug.enabled = " + debug.is_enabled_string(),
+                                         "current_theme = " + themes_list[current_theme_id]])
                         os.system("mode con: cols=81 lines=81")
                         exit()
                     if options[1] == "2":
@@ -425,12 +535,19 @@ def editor():
                 action = combo[0]
                 if action == "F1":
                     debug.toggle()
+                if action == "F2":
+                    next_theme()
+                if action == "F3":
+                    toggle_help()
                 if action == "ENTER":
                     opened_file.new_line_after()
 
                 # "ctrl+backspace" should do opened_file.remove_line() <-- Add it later
                 if action == "BACKSPACE":
                     opened_file.remove_character()
+
+                if action == "DELETE":
+                    opened_file.remove_character_right()
 
                 if action == "ESC":
                     writing = False
@@ -452,47 +569,49 @@ def current_time():
 
 def display_tick():
     global opened_file, is_toggle_help
-
     os.system("cls")
     if is_toggle_help:
         color_set("help_line")
-        print("-"*96, end="")
+        fprint("-"*96, end="")
         color_set("help_title")
-        print("[ HELP ]", end="")
+        fprint("[ HELP ]", end="")
         color_set("help_line")
-        print("-"*96, end="")
+        fprint("-"*96,)
 
         help_pop_up = [
-            "Opened a help section!"
+            "Welcome to my little CMD Editor. The original idea came to me on 10th of January",
+            "I was able to make the application usable on 13th of January as writing, saving and editing was added.",
+            "Later I added themes to add colors and here we are. This is what you are using now!",
+            "I appreciate it if you are currently using the editor!"
         ]
         color_set("help_text")
         for line in help_pop_up:
-            print("  " + line + " "*(76-len(line)) + " ")
-        print()
+            fprint("  " + line + " "*(76-len(line)) + " ")
+        fprint()
     color_set("esc")
-    print("[ESC]", end="")
+    fprint("[ESC]", end="")
     color_set("toolbar_line")
-    print("="*90, end="")
+    fprint("="*90, end="")
     color_set("toolbar_title")
-    print("[ Editor ]", end="")
+    fprint("[ Editor ]", end="")
     color_set("toolbar_line")
-    print("="*95)
+    fprint("="*95)
     top_menu = [
-        "1) EXIT (no save)   4) Toggle Debug   7) Next Theme",
-        "2) Save             5) Increase fps",
-        "3) Toggle Help      6) Decrease fps"
+        "1) EXIT (no save)     4) Toggle Debug [F1]   7) Next Theme [F2]",
+        "2) Save               5) Increase fps",
+        "3) Toggle Help [F3]   6) Decrease fps"
 
     ]
     color_set("toolbar_text")
     if options[0]:
-        print()
+        fprint()
         selected_top_menu = []
         for line in top_menu:
             selected_top_menu.append(line.replace(str(options[1])+")", "->"))
         for line in selected_top_menu:
-            print("  " + line + " "*(76-len(line)) + " ")
-        print("_"*200)
-    print()
+            fprint("  " + line + " "*(76-len(line)) + " ")
+        fprint("_"*200)
+    fprint()
 
     # Display adjustment
     # <- width check ->
@@ -531,42 +650,43 @@ def display_tick():
                     except IndexError:
                         temp.append(" ")
             color_set("editor_line_number")
-            print(number_index, end="")
+            fprint(number_index, end="")
             color_set("editor_line_side")
-            print("> ", end="")
+            fprint("> ", end="")
             color_set("editor_text")
-            print("".join(temp))
+            fprint("".join(temp))
         else:
             color_set("editor_line_number")
-            print(number_index, end="")
+            fprint(number_index, end="")
             color_set("editor_line_side")
-            print("> ", end="")
+            fprint("> ", end="")
             color_set("editor_text")
-            print(line)
+            fprint(line)
     fill_lines = (display_height-len(opened_file.get_lines()))
     if fill_lines > 0:
-        print("\n" * fill_lines)
+        fprint("\n" * fill_lines, end="")
     color_set("editor_bottom")
-    print("\n" + "#"*200)
+    fprint("\n" + "#"*200)
 
     bottom_credits = [
         "CMD text editor developed by Artur Wagner",
         "Jan 2019"
     ]
     color_set("credits")
-    print()
+    fprint()
     for line in bottom_credits:
         space_right = (201 - len(line))/2
         space_left = space_right - 1
         if isinstance(len(line)/2, float):
-            print(round(space_left) * " " + line + " " * round(space_right))
+            fprint(round(space_left) * " " + line + " " * round(space_right))
         else:
-            print(int(space_left) * " " + line + "" * int(space_right))
+            fprint(int(space_left) * " " + line + "" * int(space_right))
     color_set("debug")
-    print()
     if debug.is_enabled():
         debug.display()
     color_set("none")
+    fprint_dispatch()
+
 
 def main():
     global system_data, debug
