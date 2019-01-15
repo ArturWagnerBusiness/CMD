@@ -353,17 +353,17 @@ class File:
 
     def remove_character_right(self):
         global cursor_pos
-        if cursor_pos[1] == len(self.get_lines()) and cursor_pos[0] == len(self.get_line(len(self.get_lines()))):
+        if cursor_pos[1] == len(self.get_lines()) - 1 and cursor_pos[0] == len(self.get_line(cursor_pos[1])):
             # End of file, can't use DEL
             pass
-        elif cursor_pos[0] == self.get_line(cursor_pos[1]):
+        elif cursor_pos[0] == len(self.get_line(cursor_pos[1])):
             temp_line = list(self.get_line(cursor_pos[1]))
             temp_line.insert(cursor_pos[0], self.get_line(cursor_pos[1]+1))
             self.lines[cursor_pos[1]] = "".join(temp_line)
-            self.lines[cursor_pos[1]+1].pop()
-        elif cursor_pos[0] != self.get_line(cursor_pos[1]):
+            self.lines.pop(cursor_pos[1]+1)
+        else:
             temp_line = list(self.get_line(cursor_pos[1]))
-            temp_line.pop(cursor_pos[0] + 1)
+            temp_line.pop(cursor_pos[0])
             self.lines[cursor_pos[1]] = "".join(temp_line)
 
     def line_length(self, line):
