@@ -21,4 +21,4 @@ So if you want to run and use the program from anywhere then you should use meth
   editor {filename} {new/open}
 
 
-Read about it on https://eis3.github.io/
+Read about it on https://arturwagnerbusiness.github.io/
