@@ -1,0 +1,13 @@
+
+#==============================#
+                               |
+Available Python versions:     |
+ > python352 (Python 3.5.2)    |
+ > python372 (Python 3.7.2)    |
+                               |
+Commands:                      |
+ > python??? -m pip {command}  |
+ > python.txt {edit this menu} |
+                               |
+#==============================#
+
