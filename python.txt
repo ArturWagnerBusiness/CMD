@@ -3,7 +3,8 @@
                                |
 Available Python versions:     |
  > python352 (Python 3.5.2)    |
- > python372 (Python 3.7.2)    |
+ > python (Python 3.7.2)       |
+ > python2716 (Python 2.7.16)  |
                                |
 Commands:                      |
  > python??? -m pip {command}  |

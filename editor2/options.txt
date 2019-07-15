@@ -1,4 +1,4 @@
 fps = 10
 is_toggle_help = False
 debug.enabled = False
-current_theme = dark_cyan
+current_theme = dark_red
