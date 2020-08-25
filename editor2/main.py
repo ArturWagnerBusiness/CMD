@@ -7,7 +7,7 @@ from KeyCollector import KeyCollector
 from colorama import init as colorama
 colorama()
 
-options_dir = "C:\\CMD\\editor\\"
+options_dir = "D:\\Storage\\GitHub\\CMD\\editor2"
 
 
 class Color:
